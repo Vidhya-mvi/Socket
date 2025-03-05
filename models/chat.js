@@ -6,11 +6,6 @@ const messageSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  receiver: {  
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
   content: {
     type: String,
     required: true,
@@ -35,7 +30,8 @@ const chatSchema = new mongoose.Schema({
   },
   groupName: {
     type: String,
-    required: function () { return this.isGroupChat; },
+    required: function () { return this.isGroupChat; }, // ✅ Only required for group chats
+    default: null,
   },
   admins: [{ 
     type: mongoose.Schema.Types.ObjectId,
@@ -47,14 +43,19 @@ const chatSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-// Update lastMessage after a message is saved
+
+
+// ✅ Update lastMessage after a message is saved
 messageSchema.post('save', async function (doc, next) {
   try {
-    await mongoose.model('Chat').findByIdAndUpdate(doc.chatId, {
-      lastMessage: doc._id
-    });
+    await mongoose.model('Chat').findByIdAndUpdate(
+      doc.chatId,
+      { lastMessage: doc._id },
+      { new: true }
+    );
+    console.log(`lastMessage updated for chat ${doc.chatId}`);
   } catch (error) {
-    console.error("Error updating lastMessage in Chat model:", error);
+    console.error(" Error updating lastMessage:", error);
   }
   next();
 });

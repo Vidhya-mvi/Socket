@@ -10,12 +10,12 @@
     <div class="chat-container">
         <h2>Chat Messages</h2>
 
-        <div class="messages">
+        <div class="messages" id="messages">
             <% if (messages.length === 0) { %>
                 <p>No messages yet.</p>
             <% } else { %>
                 <% messages.forEach(message => { %>
-                    <div class="message">
+                    <div class="message <%= message.sender._id === user._id ? 'sent' : 'received' %>">
                         <strong><%= message.sender.name %>:</strong>
                         <p><%= message.content %></p>
                         <span class="timestamp"><%= new Date(message.createdAt).toLocaleString() %></span>
@@ -23,38 +23,48 @@
                 <% }); %>
             <% } %>
         </div>
+
+        <div class="input-container">
+            <input type="text" id="messageInput" placeholder="Type a message...">
+            <button class="send-btn" onclick="sendMessage()">Send</button>
+        </div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
+        let userId = "<%= user._id %>";
 
         socket.on("receiveMessage", (data) => {
-            let messagesContainer = document.querySelector(".messages");
-
-            // Ensure messages container exists
-            if (!messagesContainer) {
-                messagesContainer = document.createElement("div");
-                messagesContainer.classList.add("messages");
-                document.querySelector(".chat-container").appendChild(messagesContainer);
-            }
-
-            // Create new message element
+            let messagesContainer = document.getElementById("messages");
+            
             const newMessage = document.createElement("div");
-            newMessage.classList.add("message");
-
-            // Format message content
+            newMessage.classList.add("message", data.senderId === userId ? "sent" : "received");
             newMessage.innerHTML = `
                 <strong>${data.senderName}:</strong>  
                 <p>${data.content}</p>
                 <span class="timestamp">${new Date(data.createdAt).toLocaleString()}</span>
             `;
-
+            
             messagesContainer.appendChild(newMessage);
-
-            // Auto-scroll to the latest message
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            scrollToBottom();
         });
+
+        function sendMessage() {
+            const messageInput = document.getElementById("messageInput");
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            socket.emit("sendMessage", { senderId: userId, senderName: "You", content: message, createdAt: new Date() });
+
+            messageInput.value = "";
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            const messagesContainer = document.getElementById("messages");
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
     </script>
 </body>
 </html>
@@ -172,5 +182,4 @@ body {
 .messages::-webkit-scrollbar-thumb:hover {
     background: #888;
 }
-
 </style>

@@ -17,6 +17,7 @@
         <div class="search-box">
             <input type="text" id="search" placeholder="Search users or groups...">
         </div>
+        
         <h3>Users</h3>
         <ul class="user-list" id="userList">
             <% users.forEach(user => { %>
@@ -25,6 +26,7 @@
                 </li>
             <% }) %>
         </ul>
+
         <h3>Groups</h3>
         <ul class="group-list" id="groupList">
             <% groups.forEach(group => { %>
@@ -33,15 +35,18 @@
                 </li>
             <% }) %>
         </ul>
+
         <button onclick="showCreateGroup()">+ Create Group</button>
         <div id="createGroupDiv" style="display: none;">
             <input type="text" id="groupName" placeholder="Group Name">
             <button onclick="createGroup()">Create</button>
         </div>
+
         <div class="logout-btn-container">
             <button class="logout-btn" onclick="logout()">Logout</button>
         </div>
     </div>
+
     <div class="chat-container">
         <div class="chat-header" id="chat-header">Select a chat</div>
         <div class="messages" id="messages"></div>
@@ -54,91 +59,119 @@
 
 <script>
 const socket = io();
-
 let currentChatId = null;
 let isGroupChat = false;
-let userId = "<%- user ? user._id : '' %>";  // Ensuring userId is never undefined
+let userId = "<%- user ? user._id : '' %>"; 
 
-console.log("User ID:", userId);  // Debugging log
+console.log("User ID:", userId);
 
 document.getElementById("search").addEventListener("keyup", filterChats);
 
-function showCreateGroup() {
-    document.getElementById("createGroupDiv").style.display = "block";
+function startChat(chatId, chatName, group) {
+    if (!chatId) return alert("Chat not found! Please select a valid chat.");
+
+    console.log(`Joining chat: ${chatName} (Chat ID: ${chatId})`);
+    currentChatId = chatId;
+    isGroupChat = group;
+    document.getElementById("chat-header").innerText = chatName;
+    
+    socket.emit("joinChat", { chatId, userId });
+    loadMessages(chatId);
 }
 
-async function createGroup() {
-    const groupName = document.getElementById("groupName").value;
-    if (!groupName) return alert("Enter a group name");
 
-    try {
-        const response = await fetch("/group/create", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ chatName: groupName, users: [userId] })
-        });
 
-        const group = await response.json();
-        if (!group._id) throw new Error("Group creation failed!");
-
-        const groupList = document.getElementById("groupList");
-        let newGroup = document.createElement("li");
-        newGroup.innerText = group.name;
-        newGroup.onclick = () => startChat(group._id, group.name, true);
-        groupList.appendChild(newGroup);
-
-        document.getElementById("groupName").value = "";
-        document.getElementById("createGroupDiv").style.display = "none";
-    } catch (error) {
-        console.error("Error creating group:", error);
-    }
-}
-
-async function startChat(chatId, chatName, group) {
-    if (!chatId) {
-        console.error("❌ No chat ID provided!");
+async function startChat(otherUserId, chatName, group) {
+    if (!otherUserId) {
+        alert("Chat not found! Please select a valid chat.");
         return;
     }
 
-    document.getElementById("chat-header").innerText = "Chat with " + chatName;
-    document.getElementById("messages").innerHTML = "";
-    currentChatId = chatId;
+    console.log(`Starting chat with: ${chatName} (Other User ID: ${otherUserId})`);
+    
+    // ✅ Set global variables
+    currentChatId = null;  // We'll get the correct chatId from the server
     isGroupChat = group;
 
+    document.getElementById("chat-header").innerText = chatName;
+
     try {
-        const response = await fetch(`/${group ? 'group' : 'chat'}/${chatId}/messages`);
-        const messages = await response.json();
-        messages.forEach(msg => appendMessage(msg.content, msg.sender._id === userId ? "sent" : "received"));
-        socket.emit("joinChat", { chatId: currentChatId, userId });
+        // ✅ Tell the server to find or create a chat
+        socket.emit("joinChat", { userId, otherUserId });
+
+        // ✅ Wait for the server to send the correct chat ID
+        socket.on("chatJoined", async ({ chatId }) => {
+            console.log(`✅ Joined chat: ${chatId}`);
+            currentChatId = chatId;
+
+            // ✅ Fetch messages for the chat
+            const response = await fetch(`/${group ? 'group' : 'chat'}/${chatId}/messages`);
+            if (!response.ok) throw new Error("Chat not found!");
+
+            const messages = await response.json();
+            document.getElementById("messages").innerHTML = ""; 
+
+            messages.forEach(msg => appendMessage(msg.content, msg.sender._id === userId ? "sent" : "received"));
+        });
     } catch (error) {
-        console.error("Error loading chat:", error);
+        console.error("❌ Error loading chat:", error);
     }
 }
 
-function sendMessage(event) {
-    event.preventDefault();
-    const message = document.getElementById("messageInput").value;
 
-    if (!currentChatId || !userId) {
-        console.error("❌ Chat ID or User ID missing! Cannot send message.");
-        return alert("Select a chat first or re-login.");
+
+async function loadMessages(chatId) {
+    try {
+        const response = await fetch(`/${isGroupChat ? 'group' : 'chat'}/${chatId}/messages`);
+        if (!response.ok) throw new Error("Chat not found!");
+
+        const messages = await response.json();
+        const messageContainer = document.getElementById("messages");
+        messageContainer.innerHTML = "";
+        
+        messages.forEach(msg => appendMessage(msg.content, msg.sender._id === userId ? "sent" : "received"));
+    } catch (error) {
+        console.error("Error loading messages:", error);
+    }
+}
+
+async function sendMessage(event) {
+    event.preventDefault();
+    const message = document.getElementById("messageInput").value.trim();
+
+    if (!message) return;
+    if (!currentChatId) {
+        alert("Select a chat first.");
+        return;
     }
 
-    fetch(`/${isGroupChat ? 'group' : 'chat'}/message`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chatId: currentChatId, content: message })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            appendMessage(message, "sent");
-            document.getElementById("messageInput").value = "";
-        }
-    })
-    .catch(error => console.error("Error:", error));
+    try {
+        const response = await fetch(`/chat/message`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                chatId: currentChatId,
+                senderId: userId,
+                content: message
+            })
+        });
 
-    socket.emit("sendMessage", { chatId: currentChatId, senderId: userId, content: message, isGroup: isGroupChat });
+        const data = await response.json();
+        if (!data._id) throw new Error("Message sending failed!");
+
+        appendMessage(message, "sent");
+        document.getElementById("messageInput").value = "";
+
+        // ✅ Emit message through WebSocket
+        socket.emit("sendMessage", {
+            chatId: currentChatId,
+            senderId: userId,
+            content: message
+        });
+    } catch (error) {
+        console.error("❌ Error sending message:", error);
+        alert("Failed to send message.");
+    }
 }
 
 function appendMessage(content, type) {
@@ -150,7 +183,7 @@ function appendMessage(content, type) {
 
 socket.on("receiveMessage", (data) => {
     console.log("🔹 New message received:", data);
-    if (data.chatId === currentChatId) appendMessage(data.content, data.senderId === userId ? "sent" : "received");
+    if (data.chatId === currentChatId) appendMessage(data.content, data.sender._id === userId ? "sent" : "received");
 });
 
 function logout() {
@@ -161,26 +194,13 @@ function logout() {
 
 function filterChats() {
     const searchQuery = document.getElementById("search").value.toLowerCase();
-
-    // Filter Users
-    document.querySelectorAll(".user-list li").forEach(user => {
-        const name = user.innerText.toLowerCase();
-        user.style.display = name.includes(searchQuery) ? "block" : "none";
-    });
-
-    // Filter Groups
-    document.querySelectorAll(".group-list li").forEach(group => {
-        const name = group.innerText.toLowerCase();
-        group.style.display = name.includes(searchQuery) ? "block" : "none";
+    document.querySelectorAll(".user-list li, .group-list li").forEach(item => {
+        item.style.display = item.innerText.toLowerCase().includes(searchQuery) ? "block" : "none";
     });
 }
-
 </script>
-
 </body>
 </html>
-
-
 
 <style>
 body {

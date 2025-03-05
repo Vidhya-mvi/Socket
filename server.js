@@ -8,11 +8,12 @@ const authMiddleware = require("./middleware/authMiddleware");
 const cookieParser = require("cookie-parser");
 require("dotenv").config();
 const connectDB = require("./config/db");
-const socketIo = require("./socketIo"); 
+const SocketIo = require("./socketIo"); 
+const socketIo = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo.initSocket(server); // Ensure socketIo properly exports initSocket
+const io = SocketIo.initSocket(server); // Ensure socketIo properly exports initSocket
 
 connectDB(); // Database connection (must handle errors properly)
 
@@ -39,7 +40,34 @@ app.get("/verify-email", (req, res) => {
   res.render("emailverification", { error: "", userId: req.query.userId || "" });
 });
 
+
+io.on('connection', (socket) => {
+  console.log('A user connected:', socket.id);
+
+  // Listen for chat message from client
+  socket.on('chatMessage', ({ sender, receiver, message }) => {
+      io.to(receiver).emit('chatMessage', { sender, message });
+  });
+
+  // Handle user joining with an ID
+  socket.on('join', (userId) => {
+      socket.join(userId); // Join a unique room for private chat
+      console.log(`User ${userId} joined the chat`);
+  });
+
+  socket.on('disconnect', () => {
+      console.log('A user disconnected:', socket.id);
+  });
+});
+
+
 const PORT = process.env.PORT || 8000;
 server.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });
+
+
+
+
+
+

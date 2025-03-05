@@ -1,90 +1,74 @@
-const chatModels = require("../models/chat");
-const Chat = chatModels.Chat;
-const Message = chatModels.Message;
+const mongoose = require("mongoose");
+const { Chat, Message } = require("../models/chat");
 const User = require("../models/user");
 const Group = require("../models/group");
-const mongoose = require("mongoose");
 
-let io;
-const connectedUsers = {}; // ✅ Fix: Declare connectedUsers
 
-const setSocketIo = (socketIo) => {
-    io = socketIo;
-};
 
-// ✅ Ensure user joins the chat room
-const joinChat = (socket) => {
-    socket.on("joinChat", async ({ chatId, userId }) => {
-        try {
-            console.log(`🔹 User ${userId} attempting to join chat: ${chatId}`);
 
-            if (!mongoose.Types.ObjectId.isValid(chatId)) {
-                return socket.emit("error", { message: "Invalid chat ID format" });
-            }
 
-            const chat = await Chat.findById(chatId).lean();
-            if (!chat) return socket.emit("error", { message: "Chat does not exist" });
 
-            if (!chat.participants.includes(userId)) {
-                return socket.emit("error", { message: "You are not a participant in this chat" });
-            }
-
-            socket.join(chatId);
-            connectedUsers[userId] = { socketId: socket.id, chatId };
-
-            console.log(`✅ User ${userId} joined chat room: ${chatId}`);
-            socket.to(chatId).emit("userJoined", { chatId, userId });
-        } catch (error) {
-            console.error("❌ Error in joinChat:", error);
-            socket.emit("error", { message: "Failed to join chat" });
-        }
-    });
-};
-
-// ✅ Create or fetch a chat
+// ✅ Create a new chat (fixes duplicate chat issue)
 const createChat = async (req, res) => {
     try {
         let { participants } = req.body;
-        if (!participants || participants.length < 2) {
-            return res.status(400).json({ error: "At least two participants required" });
+        console.log("Creating chat with participants:", participants);
+
+        if (!participants || participants.length !== 1) {
+            return res.redirect("/chat?error=You can only chat with one other person at a time.");
         }
 
-        participants = [...new Set([...participants, req.user.id])]; // ✅ Ensure unique participants
+        const userId = req.user.id;
+        const otherUserId = participants[0];
 
-        let chat = await Chat.findOne({ 
-            participants: { $all: participants, $size: participants.length } 
-        }).lean();
+        if (userId === otherUserId) {
+            return res.redirect("/chat?error=You cannot chat with yourself.");
+        }
+
+        const chatParticipants = [userId, otherUserId].sort();
+
+        // 🔹 Ensure an exact 2-user match to prevent duplicate chats
+        let chat = await Chat.findOne({
+            participants: { $all: chatParticipants, $size: 2 },
+            isGroupChat: false
+        });
 
         if (!chat) {
-            chat = await new Chat({ participants }).save();
+            chat = new Chat({ participants: chatParticipants, isGroupChat: false });
+            await chat.save();
+            console.log("New chat created:", chat._id);
+        } else {
+            console.log("Chat already exists:", chat._id);
         }
 
-        res.json(chat);
+        res.redirect(`/chat/${chat._id}`);
     } catch (error) {
-        console.error("❌ Error creating chat:", error);
-        res.status(500).json({ error: error.message });
+        console.error("Error creating chat:", error);
+        res.render("error", { message: "Error creating chat" });
     }
 };
 
-// ✅ Fetch all chats & groups
+
+// ✅ Fetch all chats
 const getChats = async (req, res) => {
     try {
+        console.log("Fetching all chats for user:", req.user.id);
         const users = await User.find().lean();
         const groups = await Group.find().lean();
-
         res.render("chat", { user: req.user, users, groups });
     } catch (error) {
-        console.error("❌ Error fetching chats:", error);
-        res.status(500).send("Server Error");
+        console.error("Error fetching chats:", error);
+        res.render("error", { message: "Server Error" });
     }
 };
 
-// ✅ Fetch chat details
+// ✅ Fetch chat by ID
 const getChatById = async (req, res) => {
     try {
         const chatId = req.params.id;
+
         if (!mongoose.Types.ObjectId.isValid(chatId)) {
-            return res.status(400).render("error", { message: "Invalid chat ID format" });
+            return res.render("error", { message: "Invalid chat ID format" });
         }
 
         const chat = await Chat.findById(chatId)
@@ -92,13 +76,13 @@ const getChatById = async (req, res) => {
             .populate({ path: "lastMessage", populate: { path: "sender", select: "name" } });
 
         if (!chat) {
-            return res.status(404).render("error", { message: "Chat not found" });
+            return res.render("error", { message: "Chat not found" });
         }
 
         res.render("chatDetails", { chat, user: req.user });
     } catch (error) {
-        console.error("❌ Error fetching chat:", error);
-        res.status(500).render("error", { message: error.message });
+        console.error("Error fetching chat:", error);
+        res.render("error", { message: error.message });
     }
 };
 
@@ -106,75 +90,77 @@ const getChatById = async (req, res) => {
 const sendMessage = async (req, res) => {
     try {
         const { chatId, content } = req.body;
+
         if (!chatId || !content.trim()) {
-            return res.status(400).json({ error: "Chat ID and message content are required" });
+            return res.redirect(`/chat/${chatId}?error=Message cannot be empty`);
         }
 
-        const chat = await Chat.findById(chatId);
-        if (!chat || !chat.participants.includes(req.user.id)) {
-            return res.status(403).json({ error: "Invalid chat or not a participant" });
+        let chat = await Chat.findById(chatId);
+        if (!chat) {
+            return res.redirect(`/chat?error=Chat not found`);
         }
 
-        const message = new Message({ chatId, sender: req.user.id, content });
+        if (!chat.participants.includes(req.user.id)) {
+            return res.redirect(`/chat/${chatId}?error=You are not part of this chat`);
+        }
+
+        const message = new Message({
+            chatId: chat._id,
+            sender: req.user.id,
+            content,
+        });
+
         await message.save();
 
         chat.lastMessage = message._id;
         await chat.save();
 
-        io.to(chatId.toString()).emit("receiveMessage", {
-            chatId,
+        io.to(chat._id.toString()).emit("receiveMessage", {
+            chatId: chat._id,
             sender: { _id: req.user.id, name: req.user.name },
             content,
             createdAt: message.createdAt,
         });
 
-        res.status(201).json(message);
+        res.redirect(`/chat/${chat._id}`);
     } catch (error) {
-        console.error("❌ Error sending message:", error);
-        res.status(500).json({ error: "Error sending message" });
+        console.error("Error sending message:", error);
+        res.render("error", { message: "Error sending message" });
     }
 };
 
-// ✅ Paginated fetching of messages
+// ✅ Fetch messages for a chat (prevents unwanted chat creation)
 const getMessages = async (req, res) => {
     try {
         const { chatId } = req.params;
-        const { page = 1, limit = 20 } = req.query;
 
-        const messages = await Message.find({ chatId })
+        if (!mongoose.Types.ObjectId.isValid(chatId)) {
+            return res.render("error", { message: "Invalid chat ID format" });
+        }
+
+        let chat = await Chat.findById(chatId);
+        if (!chat) {
+            return res.render("error", { message: "Chat not found" });
+        }
+
+        const messages = await Message.find({ chatId: chat._id })
             .populate("sender", "name")
             .sort({ createdAt: -1 })
-            .skip((page - 1) * limit)
-            .limit(parseInt(limit));
+            .limit(20);
 
-        res.json({ messages, currentPage: page, total: messages.length });
+        res.render("messages", { messages, user: req.user, chat });
     } catch (error) {
-        console.error("❌ Failed to load messages:", error);
-        res.status(500).json({ error: "Failed to load messages" });
+        console.error("Failed to load messages:", error);
+        res.render("error", { message: "Failed to load messages" });
     }
 };
 
-// ✅ Search users by name
-const searchUsers = async (req, res) => {
-    try {
-        const searchQuery = req.query.q?.trim();
-        if (!searchQuery) return res.render("chat", { chats: [], users: [], user: req.user });
-
-        const users = await User.find({ name: { $regex: new RegExp(searchQuery, "i") } })
-            .select("name _id").lean();
-
-        res.render("chat", { chats: [], users, user: req.user });
-    } catch (error) {
-        res.status(500).render("error", { message: error.message });
-    }
-};
-
-// ✅ Create group chat
+// ✅ Create a group chat
 const createGroupChat = async (req, res) => {
     try {
         const { chatName, users } = req.body;
         if (!users || users.length < 2) {
-            return res.status(400).json({ error: "A group must have at least 2 participants" });
+            return res.redirect("/chat?error=A group must have at least 2 participants");
         }
 
         const uniqueUsers = [...new Set([...users, req.user.id])];
@@ -187,21 +173,21 @@ const createGroupChat = async (req, res) => {
         });
 
         await newGroupChat.save();
-        res.status(201).json(newGroupChat);
+        res.redirect("/chat");
     } catch (error) {
-        console.error("❌ Error creating group chat:", error);
-        res.status(500).json({ error: "Error creating group chat" });
+        console.error("Error creating group chat:", error);
+        res.render("error", { message: "Error creating group chat" });
     }
 };
 
-// ✅ Add user to group chat
+// ✅ Add user to group
 const addUserToGroup = async (req, res) => {
     try {
         const { chatId, userId } = req.body;
         const chat = await Chat.findById(chatId);
 
         if (!chat || !chat.isGroupChat || chat.groupAdmin.toString() !== req.user.id) {
-            return res.status(403).json({ error: "Unauthorized action" });
+            return res.render("error", { message: "Unauthorized action" });
         }
 
         if (!chat.participants.includes(userId)) {
@@ -209,21 +195,18 @@ const addUserToGroup = async (req, res) => {
             await chat.save();
         }
 
-        res.status(200).json(chat);
+        res.redirect("/chat");
     } catch (error) {
-        res.status(500).json({ error: "Error adding user" });
+        res.render("error", { message: "Error adding user" });
     }
 };
 
 module.exports = {
-    setSocketIo,
-    joinChat,
     createChat,
     getChats,
     getChatById,
-    searchUsers,
     sendMessage,
     getMessages,
     createGroupChat,
     addUserToGroup,
-};
+}; 
