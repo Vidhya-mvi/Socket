@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messages</title>
+    <link rel="stylesheet" href="/styles.css"> <!-- Link to your CSS file -->
+</head>
+<body>
+    <div class="chat-container">
+        <h2>Chat Messages</h2>
+
+        <div class="messages">
+            <% if (messages.length === 0) { %>
+                <p>No messages yet.</p>
+            <% } else { %>
+                <% messages.forEach(message => { %>
+                    <div class="message">
+                        <strong><%= message.sender.name %>:</strong>
+                        <p><%= message.content %></p>
+                        <span class="timestamp"><%= new Date(message.createdAt).toLocaleString() %></span>
+                    </div>
+                <% }); %>
+            <% } %>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        socket.on("receiveMessage", (data) => {
+            let messagesContainer = document.querySelector(".messages");
+
+            // Ensure messages container exists
+            if (!messagesContainer) {
+                messagesContainer = document.createElement("div");
+                messagesContainer.classList.add("messages");
+                document.querySelector(".chat-container").appendChild(messagesContainer);
+            }
+
+            // Create new message element
+            const newMessage = document.createElement("div");
+            newMessage.classList.add("message");
+
+            // Format message content
+            newMessage.innerHTML = `
+                <strong>${data.senderName}:</strong>  
+                <p>${data.content}</p>
+                <span class="timestamp">${new Date(data.createdAt).toLocaleString()}</span>
+            `;
+
+            messagesContainer.appendChild(newMessage);
+
+            // Auto-scroll to the latest message
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        });
+    </script>
+</body>
+</html>
+
+<style>
+  /* General Page Styling */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f9;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+/* Chat Container */
+.chat-container {
+    width: 400px;
+    max-width: 90%;
+    background: #fff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Messages List */
+.messages {
+    padding: 15px;
+    height: 400px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Message Bubble */
+.message {
+    max-width: 80%;
+    padding: 10px;
+    margin: 5px 0;
+    border-radius: 15px;
+    font-size: 14px;
+    word-wrap: break-word;
+    position: relative;
+}
+
+/* Sent Messages */
+.message.sent {
+    align-self: flex-end;
+    background: #0078ff;
+    color: #fff;
+    border-bottom-right-radius: 2px;
+}
+
+/* Received Messages */
+.message.received {
+    align-self: flex-start;
+    background: #e5e5ea;
+    color: #000;
+    border-bottom-left-radius: 2px;
+}
+
+/* Message Timestamp */
+.timestamp {
+    font-size: 10px;
+    color: #555;
+    margin-top: 3px;
+    display: block;
+    text-align: right;
+}
+
+/* Input & Send Button */
+.input-container {
+    display: flex;
+    padding: 10px;
+    border-top: 1px solid #ddd;
+    background: #fff;
+}
+
+#messageInput {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    outline: none;
+    border-radius: 5px;
+}
+
+.send-btn {
+    padding: 10px 15px;
+    background: #0078ff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-left: 5px;
+}
+
+.send-btn:hover {
+    background: #0056cc;
+}
+
+/* Scrollbar Styling */
+.messages::-webkit-scrollbar {
+    width: 5px;
+}
+
+.messages::-webkit-scrollbar-thumb {
+    background: #bbb;
+    border-radius: 5px;
+}
+
+.messages::-webkit-scrollbar-thumb:hover {
+    background: #888;
+}
+
+</style>

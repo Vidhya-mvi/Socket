@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register - Chat App</title>
+</head>
+<body>
+  <div class="container">
+    <h2>Create Your Account</h2>
+
+    <% if (typeof error !== 'undefined') { %>
+      <div class="alert"><%= error %></div>
+    <% } %>
+
+    <form action="/auth/register" method="POST">
+      <label for="name">Full Name</label>
+      <input type="text" id="name" name="name" placeholder="Enter Full Name" required>
+
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" placeholder="Enter Email" required>
+
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" placeholder="Enter Password" required>
+      <div class="password-hint" id="passwordHint">Password must be at least 8 characters, include a number & a special character.</div>
+
+      <button type="submit">Register</button>
+    </form>
+
+    <p>Already have an account? <a href="/login">Login</a></p>
+    <a href="/">Back to Home</a>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const form = document.querySelector("form");
+        const nameInput = document.getElementById("name");
+        const emailInput = document.getElementById("email");
+        const passwordInput = document.getElementById("password");
+        const passwordHint = document.getElementById("passwordHint");
+
+        form.addEventListener("submit", function (event) {
+            const name = nameInput.value.trim();
+            const email = emailInput.value.trim();
+            const password = passwordInput.value.trim();
+
+            if (!/^[a-zA-Z\s]+$/.test(name)) {
+                alert("Name must only contain letters and spaces!");
+                event.preventDefault();
+                return;
+            }
+
+            if (!/^\S+@\S+\.\S+$/.test(email)) {
+                alert("Invalid email format!");
+                event.preventDefault();
+                return;
+            }
+
+            if (!/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(password)) {
+                alert("Password must be at least 8 characters, include a number & a special character!");
+                event.preventDefault();
+            }
+        });
+
+        passwordInput.addEventListener("input", function () {
+            const password = passwordInput.value;
+            const isValid = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/.test(password);
+            passwordHint.style.display = "block";
+            passwordHint.classList.toggle("valid", isValid);
+            passwordHint.textContent = isValid ? " Password is strong!" : " Password must be at least 8 characters, include a number & a special character.";
+        });
+    });
+  </script>
+
+</body>
+</html>
+<style>
+  body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(0deg, #FFDEE9 0%, #B5FFFC 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+  }
+
+  .container {
+      background: white;
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.2);
+      text-align: center;
+      width: 320px;
+  }
+
+  h2 {
+      margin-bottom: 20px;
+      color: #333;
+  }
+
+  .alert {
+      color: #fff;
+      background-color: #dc3545;
+      padding: 10px;
+      margin-bottom: 15px;
+      border-radius: 5px;
+  }
+
+  label {
+      display: block;
+      text-align: left;
+      font-size: 14px;
+      margin-top: 10px;
+  }
+
+  input {
+      width: 90%;
+      padding: 12px;
+      margin: 5px 0;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 16px;
+      text-align: center;
+  }
+
+  button {
+      width: 100%;
+      padding: 12px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s, transform 0.2s;
+      font-size: 16px;
+      margin-top: 10px;
+  }
+
+  button:hover {
+      background-color: #0056b3;
+      transform: scale(1.05);
+  }
+
+  a {
+      display: inline-block;
+      margin-top: 10px;
+      color: #007BFF;
+      text-decoration: none;
+  }
+
+  a:hover {
+      text-decoration: underline;
+  }
+
+  .password-hint {
+      font-size: 12px;
+      color: #555;
+      text-align: left;
+      margin-top: 5px;
+      display: none;
+  }
+
+  .password-hint.valid {
+      color: green;
+  }
+</style>

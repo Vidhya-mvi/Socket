@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Chat App</title>
+</head>
+<body>
+  <div class="container">
+    <h2>Login</h2>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="alert alert-danger"><%= error %></div>
+    <% } %>
+
+    <form action="/auth/login" method="POST" id="login-form">
+      <input type="email" name="email" id="email" placeholder="Enter Email" required>
+      <div class="password-container">
+        <input type="password" name="password" id="password" placeholder="Enter Password" required>
+        <span id="toggle-password">&#128065;</span> <!-- Eye icon for toggling password -->
+      </div>
+      <button type="submit" id="login-btn">Login</button>
+    </form>
+
+    <p>Don't have an account? <a href="/register">Register</a></p>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const emailInput = document.getElementById("email");
+      const passwordInput = document.getElementById("password");
+      const togglePassword = document.getElementById("toggle-password");
+      const form = document.getElementById("login-form");
+
+      // Trim input values before submission
+      form.addEventListener("submit", function (event) {
+        emailInput.value = emailInput.value.trim();
+        passwordInput.value = passwordInput.value.trim();
+
+        if (!emailInput.value || !passwordInput.value) {
+          event.preventDefault();
+          alert("Both fields are required.");
+        }
+      });
+
+      // Toggle password visibility
+      togglePassword.addEventListener("click", function () {
+        if (passwordInput.type === "password") {
+          passwordInput.type = "text";
+          togglePassword.textContent = "🙈";
+        } else {
+          passwordInput.type = "password";
+          togglePassword.textContent = "👁️";
+        }
+      });
+    });
+  </script>
+</body>
+</html>
+
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background-color: #FFDEE9;
+    background-image: linear-gradient(0deg, #FFDEE9 0%, #B5FFFC 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+  }
+
+  .container {
+    background: rgb(241, 240, 241);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0px 14px 20px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    width: 320px;
+  }
+
+  h2 {
+    margin-bottom: 20px;
+    color: #333;
+  }
+
+  .alert {
+    color: #fff;
+    background-color: #dc3545;
+    padding: 10px;
+    margin-bottom: 15px;
+    border-radius: 5px;
+  }
+
+  input {
+    width: 90%;
+    padding: 12px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 16px;
+    transition: 0.3s;
+  }
+
+  input:focus {
+    border-color: #007BFF;
+    outline: none;
+    box-shadow: 0px 0px 8px rgba(0, 123, 255, 0.5);
+  }
+
+  .password-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #toggle-password {
+    position: absolute;
+    right: 15px;
+    cursor: pointer;
+    font-size: 18px;
+  }
+
+  button {
+    width: 90%;
+    padding: 12px;
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s, transform 0.2s;
+    font-size: 16px;
+  }
+
+  button:hover {
+    background-color: #0056b3;
+    transform: scale(1.05);
+  }
+
+  a {
+    color: #007BFF;
+    text-decoration: none;
+    display: block;
+    margin-top: 10px;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+</style>

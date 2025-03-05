@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify Email - Chat App</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body>
+  <div class="container mt-5">
+    <h2 class="text-center">Verify Your Email</h2>
+
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="alert alert-danger"><%= error %></div>
+    <% } %>
+
+    <form action="/auth/verify-email" method="POST" id="verify-form">
+      <% if (typeof userId !== "undefined" && userId) { %>
+        <input type="hidden" name="userId" value="<%= userId %>">
+      <% } %>
+
+      <div class="mb-3">
+        <label for="otp" class="form-label">Enter OTP</label>
+        <input type="text" name="otp" id="otp" class="form-control text-center" placeholder="123456" required minlength="4" maxlength="6" autocomplete="off">
+        <small id="otp-error" class="text-danger"></small>
+      </div>
+
+      <button type="submit" id="verify-btn" class="btn btn-primary w-100" disabled>Verify</button>
+    </form>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const otpInput = document.getElementById("otp");
+      const verifyBtn = document.getElementById("verify-btn");
+      const errorText = document.getElementById("otp-error");
+      const form = document.getElementById("verify-form");
+
+      function validateOtp() {
+        otpInput.value = otpInput.value.replace(/\D/g, ""); // Remove non-numeric characters
+        const otp = otpInput.value.trim();
+
+        if (/^\d{4,6}$/.test(otp)) {
+          errorText.textContent = "";
+          verifyBtn.disabled = false;
+        } else {
+          errorText.textContent = "OTP must be a 4-6 digit number.";
+          verifyBtn.disabled = true;
+        }
+      }
+
+      otpInput.addEventListener("input", validateOtp);
+      form.addEventListener("submit", function (event) {
+        if (verifyBtn.disabled) {
+          event.preventDefault();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
+
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: linear-gradient(0deg, #FFDEE9 0%, #B5FFFC 100%);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+  }
+
+  .container {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0px 14px 20px rgba(0, 0, 0, 0.2);
+    text-align: center;
+    width: 300px;
+  }
+
+  h2 {
+    margin-bottom: 20px;
+    color: #333;
+  }
+
+  .alert {
+    color: #fff;
+    background-color: #dc3545;
+    padding: 10px;
+    margin-bottom: 15px;
+    border-radius: 5px;
+  }
+
+  label {
+    display: block;
+    text-align: left;
+    font-size: 14px;
+    margin-bottom: 5px;
+  }
+
+  input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    text-align: center;
+    font-size: 18px;
+  }
+
+  button {
+    padding: 10px;
+    font-size: 16px;
+    transition: background-color 0.3s;
+  }
+
+  button:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+  }
+
+  button:hover:enabled {
+    background-color: #0056b3;
+  }
+</style>
