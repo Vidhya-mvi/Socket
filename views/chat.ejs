@@ -1,345 +1,356 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat</title>
-    <link rel="stylesheet" href="styles.css">
-    <script defer src="script.js"></script>
+    <title>Welcome, <%= currentUser.name %>!</title>
     <script src="/socket.io/socket.io.js"></script>
+
 </head>
+
 <body>
 
-<div class="container">
-    <div class="sidebar">
-        <h3 id="welcomeMessage">Welcome, <%= user ? user.name : 'Guest' %>!</h3>
-        <h2>Chats</h2>
-        <div class="search-box">
-            <input type="text" id="search" placeholder="Search users or groups...">
-        </div>
-        
-        <h3>Users</h3>
-        <ul class="user-list" id="userList">
-            <% users.forEach(user => { %>
-                <li onclick="startChat('<%= user._id %>', '<%= user.name %>', false)">
-                    <%= user.name %>
-                </li>
-            <% }) %>
-        </ul>
+    <h2>Welcome, <%= currentUser.name %>!</h2>
 
-        <h3>Groups</h3>
-        <ul class="group-list" id="groupList">
-            <% groups.forEach(group => { %>
-                <li onclick="startChat('<%= group._id %>', '<%= group.name %>', true)">
-                    <%= group.name %>
-                </li>
-            <% }) %>
-        </ul>
+    <div id="container">
+        <div id="users">
+            <h3>Users</h3>
+            <% users.forEach(user=> { %>
+                <% if (user._id.toString() !==currentUser._id.toString()) { %>
+                    <div class="user" onclick="openChat('<%= user._id %>', '<%= user.name %>')">
+                        <%= user.name %>
+                    </div>
+                    <% } %>
+                        <% }); %>
+                            <!--  join a group -->
+                            <h3>Create or Join Group</h3>
+                            <input type="text" id="groupName" placeholder="Group name">
+                            <button onclick="createGroup()">Create Group</button>
+                            <h4>Or join an existing group:</h4>
+                            <div id="groupList"></div>
 
-        <button onclick="showCreateGroup()">+ Create Group</button>
-        <div id="createGroupDiv" style="display: none;">
-            <input type="text" id="groupName" placeholder="Group Name">
-            <button onclick="createGroup()">Create</button>
+                            <a href="/logout" id="logoutBtn">Logout</a>
+
         </div>
 
-        <div class="logout-btn-container">
-            <button class="logout-btn" onclick="logout()">Logout</button>
+        <div id="chat">
+            <h3 id="chatTitle">Select a user or group to chat</h3>
+            <ul id="messages"></ul>
+            <input id="messageInput" placeholder="Type a message..." />
+            <button id="sendMessage" disabled>Send</button>
         </div>
     </div>
 
-    <div class="chat-container">
-        <div class="chat-header" id="chat-header">Select a chat</div>
-        <div class="messages" id="messages"></div>
-        <form class="chat-input" onsubmit="sendMessage(event)">
-            <input type="text" id="messageInput" placeholder="Type a message..." required>
-            <button type="submit">Send</button>
-        </form>
-    </div>
-</div>
-
-<script>
-const socket = io();
-let currentChatId = null;
-let isGroupChat = false;
-let userId = "<%- user ? user._id : '' %>"; 
-
-console.log("User ID:", userId);
-
-document.getElementById("search").addEventListener("keyup", filterChats);
-
-function startChat(chatId, chatName, group) {
-    if (!chatId) return alert("Chat not found! Please select a valid chat.");
-
-    console.log(`Joining chat: ${chatName} (Chat ID: ${chatId})`);
-    currentChatId = chatId;
-    isGroupChat = group;
-    document.getElementById("chat-header").innerText = chatName;
-    
-    socket.emit("joinChat", { chatId, userId });
-    loadMessages(chatId);
-}
+    <script>
+        const socket = io();
+        let currentRoom = null;
+        let currentChatUser = null;
 
 
+        function openChat(userId, userName) {
+            const user1 = "<%= currentUser._id %>";
+            const user2 = userId;
+            currentRoom = user1 < user2 ? `${user1}_${user2}` : `${user2}_${user1}`;
+            currentChatUser = userName;
 
-async function startChat(otherUserId, chatName, group) {
-    if (!otherUserId) {
-        alert("Chat not found! Please select a valid chat.");
-        return;
-    }
+            document.getElementById("chatTitle").innerText = "Chat with " + userName;
+            document.getElementById("sendMessage").disabled = false;
+            document.getElementById("messages").innerHTML = "";
 
-    console.log(`Starting chat with: ${chatName} (Other User ID: ${otherUserId})`);
-    
-    // ✅ Set global variables
-    currentChatId = null;  // We'll get the correct chatId from the server
-    isGroupChat = group;
-
-    document.getElementById("chat-header").innerText = chatName;
-
-    try {
-        // ✅ Tell the server to find or create a chat
-        socket.emit("joinChat", { userId, otherUserId });
-
-        // ✅ Wait for the server to send the correct chat ID
-        socket.on("chatJoined", async ({ chatId }) => {
-            console.log(`✅ Joined chat: ${chatId}`);
-            currentChatId = chatId;
-
-            // ✅ Fetch messages for the chat
-            const response = await fetch(`/${group ? 'group' : 'chat'}/${chatId}/messages`);
-            if (!response.ok) throw new Error("Chat not found!");
-
-            const messages = await response.json();
-            document.getElementById("messages").innerHTML = ""; 
-
-            messages.forEach(msg => appendMessage(msg.content, msg.sender._id === userId ? "sent" : "received"));
-        });
-    } catch (error) {
-        console.error("❌ Error loading chat:", error);
-    }
-}
+            console.log(` Joining chat room: ${currentRoom}`);
+            socket.emit("joinRoom", currentRoom);
+        }
 
 
+        function createGroup() {
+            const groupName = document.getElementById("groupName").value.trim();
+            if (groupName === "") return;
 
-async function loadMessages(chatId) {
-    try {
-        const response = await fetch(`/${isGroupChat ? 'group' : 'chat'}/${chatId}/messages`);
-        if (!response.ok) throw new Error("Chat not found!");
 
-        const messages = await response.json();
-        const messageContainer = document.getElementById("messages");
-        messageContainer.innerHTML = "";
-        
-        messages.forEach(msg => appendMessage(msg.content, msg.sender._id === userId ? "sent" : "received"));
-    } catch (error) {
-        console.error("Error loading messages:", error);
-    }
-}
+            socket.emit("createGroup", groupName);
+            currentRoom = groupName;
+            document.getElementById("chatTitle").innerText = `Group Chat: ${groupName}`;
+            document.getElementById("sendMessage").disabled = false;
+            document.getElementById("messages").innerHTML = "";
 
-async function sendMessage(event) {
-    event.preventDefault();
-    const message = document.getElementById("messageInput").value.trim();
+            console.log(` Creating/joining group: ${groupName}`);
+            socket.emit("joinRoom", currentRoom);
+        }
 
-    if (!message) return;
-    if (!currentChatId) {
-        alert("Select a chat first.");
-        return;
-    }
-
-    try {
-        const response = await fetch(`/chat/message`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                chatId: currentChatId,
-                senderId: userId,
-                content: message
-            })
+        document.getElementById("sendMessage").addEventListener("click", sendMessage);
+        document.getElementById("messageInput").addEventListener("keypress", (event) => {
+            if (event.key === "Enter") sendMessage();
         });
 
-        const data = await response.json();
-        if (!data._id) throw new Error("Message sending failed!");
+        function sendMessage() {
+            const messageInput = document.getElementById("messageInput");
+            const message = messageInput.value.trim();
+            if (message === "" || !currentRoom) return;
 
-        appendMessage(message, "sent");
-        document.getElementById("messageInput").value = "";
+            const messageData = {
+                room: currentRoom,
+                message,
+                sender: "<%= currentUser._id %>"
+            };
 
-        // ✅ Emit message through WebSocket
-        socket.emit("sendMessage", {
-            chatId: currentChatId,
-            senderId: userId,
-            content: message
+            console.log(" Sending message:", messageData);
+
+            socket.emit("chatMessage", messageData);
+            addMessage("<%= currentUser.name %>", message, "sent");
+            messageInput.value = "";
+        }
+
+
+        socket.on("chatMessage", (data) => {
+            console.log(" Received message:", data);
+
+            if (data.room !== currentRoom) return;
+
+            const senderName = data.sender === "<%= currentUser._id %>" ? "<%= currentUser.name %>" : currentChatUser;
+            addMessage(senderName, data.message, data.sender === "<%= currentUser._id %>" ? "sent" : "received");
         });
-    } catch (error) {
-        console.error("❌ Error sending message:", error);
-        alert("Failed to send message.");
-    }
-}
 
-function appendMessage(content, type) {
-    const messageElement = document.createElement("div");
-    messageElement.classList.add("message", type);
-    messageElement.innerText = content;
-    document.getElementById("messages").appendChild(messageElement);
-}
 
-socket.on("receiveMessage", (data) => {
-    console.log("🔹 New message received:", data);
-    if (data.chatId === currentChatId) appendMessage(data.content, data.sender._id === userId ? "sent" : "received");
-});
+        function addMessage(sender, message, type) {
+            const msgList = document.getElementById("messages");
+            const newMsg = document.createElement("li");
+            newMsg.className = `message ${type}`;
+            newMsg.textContent = `${sender}: ${message}`;
+            msgList.appendChild(newMsg);
+            msgList.scrollTop = msgList.scrollHeight;
+        }
 
-function logout() {
-    fetch('/logout', { method: 'GET' })
-        .then(() => window.location.href = "/login")
-        .catch(err => console.error("Logout failed:", err));
-}
 
-function filterChats() {
-    const searchQuery = document.getElementById("search").value.toLowerCase();
-    document.querySelectorAll(".user-list li, .group-list li").forEach(item => {
-        item.style.display = item.innerText.toLowerCase().includes(searchQuery) ? "block" : "none";
-    });
-}
-</script>
+        socket.on("groupList", (groups) => {
+            const groupList = document.getElementById("groupList");
+            groupList.innerHTML = "";
+            groups.forEach(group => {
+                const groupItem = document.createElement("div");
+                groupItem.className = "user";
+                groupItem.textContent = group;
+                groupItem.onclick = () => openChat(group, group);
+                groupList.appendChild(groupItem);
+            });
+        });
+
+
+        socket.emit("requestGroupList");
+
+    </script>
+
 </body>
+
 </html>
 
+
 <style>
-body {
-    font-family: 'Roboto', sans-serif;
-    display: flex;
-    height: 100vh;
-    margin: 0;
-    background: #f4f6f9;
-}
+    h2 {
+        text-align: center;
+    }
 
-.container {
-    display: flex;
-    width: 100%;
-    height: 100%;
-}
+    #container {
+        display: flex;
+        max-width: 900px;
+        margin: auto;
+    }
 
-.sidebar {
-    width: 300px;
-    background-color: #2c3e50;
-    color: white;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-}
+    #users {
+        width: 30%;
+        border-right: 1px solid #ccc;
+        padding: 10px;
+    }
 
-.search-box input {
-    width: 90%;
-    padding: 12px;
-    border-radius: 25px;
-    border: 2px solid #34495e;
-    background-color: #34495e;
-    color: white;
-    font-size: 16px;
-}
+    #chat {
+        width: 70%;
+        padding: 10px;
+    }
 
-.search-box input:focus {
-    outline: none;
-    border-color: #2ecc71;
-}
+    .user {
+        cursor: pointer;
+        padding: 8px;
+        margin-bottom: 5px;
+        background: #f0f0f0;
+        border-radius: 5px;
+    }
 
-.user-list, .group-list {
-    list-style-type: none;
-    padding: 0;
-    flex-grow: 1;
-    overflow-y: auto;
-}
+    .user:hover {
+        background: #ddd;
+    }
 
-.user-list li, .group-list li {
-    padding: 12px;
-    cursor: pointer;
-    border-bottom: 1px solid #34495e;
-    transition: background-color 0.3s ease;
-}
+    #messages {
+        list-style: none;
+        padding: 0;
+        max-height: 300px;
+        overflow-y: auto;
+    }
 
-.user-list li:hover, .group-list li:hover {
-    background-color: #34495e;
-    transform: translateX(5px);
-}
+    .message {
+        padding: 8px;
+        margin: 5px 0;
+        border-radius: 5px;
+    }
 
-.chat-container {
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    background-color: white;
-    border-left: 2px solid #ddd;
-}
+    .sent {
+        background: #dcf8c6;
+        text-align: right;
+    }
 
-.chat-header {
-    background-color: #3498db;
-    color: white;
-    padding: 20px;
-    text-align: center;
-}
+    .received {
+        background: #f1f0f0;
+        text-align: left;
+    }
 
-.messages {
-    flex-grow: 1;
-    padding: 20px;
-    overflow-y: auto;
-    background-color: #ecf0f1;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
+    #messageInput {
+        width: 80%;
+        padding: 10px;
+    }
 
-.message {
-    padding: 12px;
-    border-radius: 10px;
-    max-width: 70%;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
+    #sendMessage {
+        padding: 10px;
+    }
 
-.sent {
-    background-color: #3498db;
-    color: white;
-    align-self: flex-end;
-}
+    #logoutBtn {
+        display: block;
+        margin: 20px auto;
+        padding: 10px 15px;
+        background: red;
+        color: white;
+        text-align: center;
+        cursor: pointer;
+        border-radius: 5px;
+        width: fit-content;
+    }
 
-.received {
-    background-color: #e74c3c;
-    color: white;
-    align-self: flex-start;
-}
+    #logoutBtn:hover {
+        background: darkred;
+    }
 
-.chat-input {
-    display: flex;
-    padding: 15px;
-    background-color: white;
-    border-top: 1px solid #ddd;
-}
+    body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f7fa;
+        margin: 0;
+        padding: 0;
+    }
 
-.chat-input input {
-    flex-grow: 1;
-    padding: 12px;
-    border-radius: 30px;
-    font-size: 16px;
-}
+    h2 {
+        text-align: center;
+        color: #333;
+        margin-top: 20px;
+    }
 
-.chat-input button {
-    padding: 12px 20px;
-    background-color: #2ecc71;
-    color: white;
-    border-radius: 30px;
-    margin-left: 10px;
-    font-size: 16px;
-}
+    #container {
+        display: flex;
+        max-width: 1200px;
+        margin: 30px auto;
+        padding: 0 20px;
+    }
 
-.logout-btn {
-    width: 90%;
-    padding: 15px;
-    margin-top: 20px;
-    background-color: #e74c3c;
-    color: white;
-    border-radius: 30px;
-    font-size: 16px;
-    text-align: center;
-}
+    #users {
+        width: 30%;
+        border-right: 1px solid #ccc;
+        padding: 15px;
+        background-color: #fff;
+    }
 
-.logout-btn:hover {
-    background-color: #c0392b;
-}
+    #chat {
+        width: 70%;
+        padding: 15px;
+        background-color: #fff;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+    }
 
+    .user {
+        cursor: pointer;
+        padding: 10px;
+        margin-bottom: 8px;
+        background: #f0f0f0;
+        border-radius: 5px;
+        font-size: 16px;
+
+    }
+
+    .user:hover {
+        background: #d9d9d9;
+    }
+
+    #messages {
+        list-style: none;
+        padding: 0;
+        max-height: 400px;
+        overflow-y: auto;
+        margin-bottom: 20px;
+    }
+
+    .message {
+        padding: 10px;
+        margin: 8px 0;
+        border-radius: 6px;
+        font-size: 14px;
+        line-height: 1.5;
+        word-wrap: break-word;
+    }
+
+    .sent {
+        background: #dcf8c6;
+        text-align: right;
+    }
+
+    .received {
+        background: #f1f0f0;
+        text-align: left;
+    }
+
+    #messageInput {
+        width: 80%;
+        padding: 12px;
+        font-size: 16px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        margin-right: 10px;
+        outline: none;
+        transition: border 0.3s ease;
+    }
+
+    #messageInput:focus {
+        border-color: #6c63ff;
+    }
+
+    #sendMessage {
+        padding: 12px 20px;
+        background-color: #6c63ff;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: background-color 0.3s ease;
+    }
+
+    #sendMessage:hover {
+        background-color: #5753e3;
+    }
+
+    #logoutBtn {
+        display: block;
+        margin: 20px auto;
+        padding: 10px 20px;
+        background-color: red;
+        color: white;
+        text-align: center;
+        border-radius: 5px;
+        width: fit-content;
+        font-size: 16px;
+        transition: background-color 0.3s ease;
+    }
+
+    #logoutBtn:hover {
+        background-color: darkred;
+    }
+
+    #chatTitle {
+        font-size: 18px;
+        margin-bottom: 10px;
+    }
 </style>

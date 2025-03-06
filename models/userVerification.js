@@ -3,22 +3,22 @@ const mongoose = require('mongoose');
 const otpSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User", 
+    ref: "User",
     required: true
   },
   otp: {
     type: String,
     required: true
   },
-  created_At: { 
-    type: Date,  
+  created_At: {
+    type: Date,
     default: Date.now,
-    required: true 
+    required: true
   },
   expires_At: {
-    type: Date, 
+    type: Date,
     required: true,
-  } 
+  }
 });
 
 const OTP = mongoose.model('OTP', otpSchema);

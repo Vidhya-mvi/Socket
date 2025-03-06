@@ -6,13 +6,13 @@ const connectDB = () => {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => {
-    console.log('MongoDB Connected');
-  })
-  .catch((error) => {
-    console.error('Error connecting to MongoDB:', error);
-    process.exit(1);
-  });
+    .then(() => {
+      console.log('MongoDB Connected');
+    })
+    .catch((error) => {
+      console.error('Error connecting to MongoDB:', error);
+      process.exit(1);
+    });
 };
 
 module.exports = connectDB;

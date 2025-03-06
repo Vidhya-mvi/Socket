@@ -17,15 +17,13 @@ router.post("/login", authController.login);
 router.post("/verify-email", authController.verifyEmail);
 
 
+
+
 router.get("/logout", (req, res) => {
-  res.clearCookie("token");
-
- 
-  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-  res.setHeader("Pragma", "no-cache");
-  res.setHeader("Expires", "0");
-
-  res.redirect("/login");
+  console.log(" Logging out...");
+  req.session.destroy(() => {
+    res.redirect("/login");
+  });
 });
 
 module.exports = router;

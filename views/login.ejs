@@ -17,7 +17,7 @@
       <input type="email" name="email" id="email" placeholder="Enter Email" required>
       <div class="password-container">
         <input type="password" name="password" id="password" placeholder="Enter Password" required>
-        <span id="toggle-password">&#128065;</span> <!-- Eye icon for toggling password -->
+        <span id="toggle-password">&#128065;</span> 
       </div>
       <button type="submit" id="login-btn">Login</button>
     </form>
@@ -32,7 +32,7 @@
       const togglePassword = document.getElementById("toggle-password");
       const form = document.getElementById("login-form");
 
-      // Trim input values before submission
+     
       form.addEventListener("submit", function (event) {
         emailInput.value = emailInput.value.trim();
         passwordInput.value = passwordInput.value.trim();
@@ -47,7 +47,7 @@
       togglePassword.addEventListener("click", function () {
         if (passwordInput.type === "password") {
           passwordInput.type = "text";
-          togglePassword.textContent = "🙈";
+          togglePassword.textContent = "*_*";
         } else {
           passwordInput.type = "password";
           togglePassword.textContent = "👁️";

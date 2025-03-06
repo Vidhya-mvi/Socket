@@ -5,7 +5,6 @@ const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 require("dotenv").config();
 
-
 let transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: process.env.SMTP_PORT,
@@ -17,17 +16,16 @@ let transporter = nodemailer.createTransport({
 
 transporter.verify((error, success) => {
   if (error) {
-    console.log("Mail Transporter Error:", error);
+    console.log(" Mail Transporter Error:", error);
   } else {
     console.log("Mail Transporter Ready");
   }
 });
 
-
 const sendOtpEmail = async (email, otp) => {
-  console.log(`Sending OTP to ${email}: ${otp}`);
+  console.log(` Sending OTP to ${email}: ${otp}`);
 
-  const mailOption = {
+  const mailOptions = {
     from: process.env.SMTP_FROM,
     to: email,
     subject: "Email Verification OTP",
@@ -35,29 +33,29 @@ const sendOtpEmail = async (email, otp) => {
   };
 
   try {
-    await transporter.sendMail(mailOption);
+    await transporter.sendMail(mailOptions);
     console.log(` OTP email sent successfully to ${email}`);
   } catch (error) {
-    console.log(`Error sending OTP email to ${email}:`, error);
+    console.log(` Error sending OTP email to ${email}:`, error);
   }
 };
 
-// Register (Signup) 
+// 🔹 Register (Signup)
 exports.register = async (req, res) => {
   try {
-    console.log("Register request body:", req.body);
-    
+    console.log(" Register request body:", req.body);
+
     const { name, email, password } = req.body;
     if (!name || !email || !password) {
       return res.render("register", { error: "All fields are required" });
     }
 
-    if (!/^[a-zA-Z]*$/.test(name)) {
-      return res.render("register", { error: "Invalid name entered" });
+    if (!/^[a-zA-Z ]*$/.test(name)) {
+      return res.render("register", { error: "Invalid name format" });
     }
 
     if (!/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email)) {
-      return res.render("register", { error: "Invalid email entered" });
+      return res.render("register", { error: "Invalid email format" });
     }
 
     if (password.length < 8) {
@@ -66,12 +64,12 @@ exports.register = async (req, res) => {
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.render("register", { error: "User already exists" });
+      return res.render("register", { error: "Email already in use" });
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
-    
+
     const newUser = await User.create({
       name,
       email,
@@ -84,21 +82,21 @@ exports.register = async (req, res) => {
 
     await OTP.create({
       userId: newUser._id,
-      otp: otp,
+      otp,
       created_At: new Date(),
-      expires_At: new Date(Date.now() + 3600000),
+      expires_At: new Date(Date.now() + 3600000), 
     });
 
     await sendOtpEmail(newUser.email, otp);
 
     return res.redirect(`/verify-email?userId=${newUser._id}`);
   } catch (error) {
-    console.log("Error during registration:", error);
-    return res.render("register", { error: error.message });
+    console.log(" Error during registration:", error);
+    return res.render("register", { error: "Something went wrong. Please try again." });
   }
 };
 
-// Login Route
+//  Login Route 
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -114,7 +112,7 @@ exports.login = async (req, res) => {
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.render("login", { error: "Invalid password" });
+      return res.render("login", { error: "Invalid credentials" });
     }
 
     if (!user.verified) {
@@ -127,18 +125,19 @@ exports.login = async (req, res) => {
 
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production", 
+      secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
     });
 
-    return res.redirect("/chat");
+    console.log(` User ${user.email} logged in. Redirecting to /chat/${user._id}`);
+    return res.redirect(`/chat/${user._id}`);
   } catch (err) {
-    console.log("Login error:", err);
-    return res.render("login", { error: "An error occurred during login" });
+    console.log(" Login error:", err);
+    return res.render("login", { error: "An error occurred during login. Please try again." });
   }
 };
 
-// Email Verification 
+//  Email Verification (Optimized)
 exports.verifyEmail = async (req, res) => {
   try {
     const { userId, otp } = req.body;
@@ -147,34 +146,29 @@ exports.verifyEmail = async (req, res) => {
       return res.render("verify-email", { error: "User ID and OTP are required" });
     }
 
-    const otpRecord = await OTP.findOne({ userId, otp });
+    const otpRecord = await OTP.findOne({ userId }).sort({ created_At: -1 });
 
-    if (!otpRecord) {
+    if (!otpRecord || otpRecord.otp !== otp) {
       return res.render("verify-email", { error: "Invalid OTP" });
     }
 
-   
+    
     if (new Date() > otpRecord.expires_At) {
       return res.render("verify-email", { error: "OTP has expired" });
     }
 
-   
     const user = await User.findById(userId);
+    if (!user) {
+      return res.render("verify-email", { error: "User not found" });
+    }
+
     user.verified = true;
     await user.save();
 
+    console.log(` User ${user.email} verified. Redirecting to login.`);
     return res.redirect("/login");
   } catch (error) {
-    console.log("Error during email verification:", error);
-    return res.render("verify-email", { error: "An error occurred during email verification" });
+    console.log(" Error during email verification:", error);
+    return res.render("verify-email", { error: "An error occurred. Please try again." });
   }
 };
-
-
-
-
-
- 
-
-
- 

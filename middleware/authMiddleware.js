@@ -6,9 +6,9 @@ const authMiddleware = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     const token =
-      req.cookies?.token || 
-      (authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : null) || 
-      req.body.token; 
+      req.cookies?.token ||
+      (authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : null) ||
+      req.body.token;
 
     if (!token) {
       console.warn("No authentication token found.");
