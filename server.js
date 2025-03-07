@@ -3,7 +3,7 @@ const authRoutes = require("./routes/authRoutes");
 const http = require("http");
 const path = require("path");
 const cors = require("cors");
-const authMiddleware = require("./middleware/authMiddleware");
+const {authMiddleware} = require("./middleware/authMiddleware");
 const cookieParser = require("cookie-parser");
 const mongoose = require("mongoose");
 require("dotenv").config();
@@ -136,7 +136,7 @@ socket.on("chatMessage", async (data) => {
 
       let senderName = data.sender.name || null;
 
-      // Fetch sender's name if it's missing
+    
       if (!senderName) {
           const user = await User.findById(data.sender).select("name");
           senderName = user ? user.name : "Unknown";
@@ -157,7 +157,7 @@ socket.on("chatMessage", async (data) => {
       chat.messages.push(newMessage);
       await chat.save();
 
-      // Fetch the latest message with the sender populated
+      
       const updatedChat = await Chat.findOne({ room: data.room })
           .populate("messages.sender", "name _id")
           .select("messages")

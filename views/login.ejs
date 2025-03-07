@@ -43,7 +43,7 @@
         }
       });
 
-      // Toggle password visibility
+      
       togglePassword.addEventListener("click", function () {
         if (passwordInput.type === "password") {
           passwordInput.type = "text";
@@ -54,6 +54,21 @@
         }
       });
     });
+
+
+  
+    if (localStorage.getItem("token")) {
+        window.location.href = "/chat"; 
+    }
+
+    window.history.pushState(null, "", window.location.href);
+    window.onpopstate = function () {
+        window.history.pushState(null, "", window.location.href);
+    };
+
+
+
+
   </script>
 </body>
 </html>

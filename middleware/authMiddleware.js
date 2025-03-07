@@ -57,4 +57,20 @@ const handleUnauthorized = (req, res, message) => {
   return res.redirect("/login");
 };
 
-module.exports = authMiddleware;
+const authRedirect = (req, res, next) => {
+  const token = req.cookies?.token || req.headers.authorization?.split(" ")[1];
+
+  if (token) {
+      try {
+          jwt.verify(token, process.env.SECRET_KEY);
+          return res.redirect("/chat"); 
+      } catch (err) {
+          console.log("Invalid token, allowing access to login/register.");
+      }
+  }
+  next();
+};
+
+
+
+module.exports = {authMiddleware,authRedirect};

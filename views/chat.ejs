@@ -32,15 +32,17 @@
                             <a href="/logout" id="logoutBtn">Logout</a>
 
         </div>
-        
-          
-       
+
+
+
 
         <div id="chat">
             <h3 id="chatTitle">Select a user or group to chat</h3>
             <ul id="messages"></ul>
-            <input id="messageInput" placeholder="Type a message..." />
-            <button id="sendMessage" disabled>Send</button>
+            <div class="bottum">
+                <input id="messageInput" placeholder="Type a message..." />
+                <button id="sendMessage" disabled>Send</button>
+            </div>
         </div>
     </div>
 
@@ -66,19 +68,19 @@
 
 
         socket.on("updateOnlineUsers", (onlineUsers) => {
-    document.querySelectorAll(".status-indicator").forEach((el) => {
-        el.innerText = " (Offline)";
-        el.style.color = "red";
-    });
+            document.querySelectorAll(".status-indicator").forEach((el) => {
+                el.innerText = " (Offline)";
+                el.style.color = "red";
+            });
 
-    onlineUsers.forEach(userId => {
-        const userStatus = document.getElementById(`status-${userId}`);
-        if (userStatus) {
-            userStatus.innerText = " (Online)";
-            userStatus.style.color = "green";
-        }
-    });
-});
+            onlineUsers.forEach(userId => {
+                const userStatus = document.getElementById(`status-${userId}`);
+                if (userStatus) {
+                    userStatus.innerText = " (Online)";
+                    userStatus.style.color = "green";
+                }
+            });
+        });
 
 
         function createGroup() {
@@ -121,29 +123,29 @@
 
 
         socket.on("loadMessages", (messages) => {
-    const messagesList = document.getElementById("messages");
-    messagesList.innerHTML = "";
+            const messagesList = document.getElementById("messages");
+            messagesList.innerHTML = "";
 
-    messages.forEach(msg => {
-        const senderName = msg.sender && msg.sender.name ? msg.sender.name : "Unknown";
+            messages.forEach(msg => {
+                const senderName = msg.sender && msg.sender.name ? msg.sender.name : "Unknown";
 
-        const li = document.createElement("li");
-        li.innerHTML = `<strong>${senderName}</strong>: ${msg.message}`;
-        messagesList.appendChild(li);
-    });
+                const li = document.createElement("li");
+                li.innerHTML = `<strong>${senderName}</strong>: ${msg.message}`;
+                messagesList.appendChild(li);
+            });
 
-    messagesList.scrollTop = messagesList.scrollHeight;
-});
+            messagesList.scrollTop = messagesList.scrollHeight;
+        });
 
 
-socket.on("chatMessage", (data) => {
-    console.log("Received message:", data);
+        socket.on("chatMessage", (data) => {
+            console.log("Received message:", data);
 
-    if (data.room !== currentRoom) return;
+            if (data.room !== currentRoom) return;
 
-    const senderName = data.sender?.name || "Unknown";  
-    addMessage(senderName, data.message, data.sender?._id === "<%= currentUser._id %>" ? "sent" : "received");
-});
+            const senderName = data.sender?.name || "Unknown";
+            addMessage(senderName, data.message, data.sender?._id === "<%= currentUser._id %>" ? "sent" : "received");
+        });
 
 
         function addMessage(sender, message, type) {
@@ -174,19 +176,19 @@ socket.on("chatMessage", (data) => {
 
 
         document.getElementById("logoutBtn").addEventListener("click", function (event) {
-    event.preventDefault(); 
+            event.preventDefault();
 
-    fetch("/logout", {
-        method: "POST",
-        credentials: "include"
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log(data.message); 
-        window.location.href = "/login"; 
-    })
-    .catch(error => console.error("Logout failed:", error));
-});
+            fetch("/logout", {
+                method: "POST",
+                credentials: "include"
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data.message);
+                    window.location.href = "/login";
+                })
+                .catch(error => console.error("Logout failed:", error));
+        });
 
 
     </script>
@@ -197,212 +199,158 @@ socket.on("chatMessage", (data) => {
 
 
 <style>
-    h2 {
-        text-align: center;
-    }
+h2{
+    text-align: center;
+}
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f7fa;
+    margin: 0;
+    padding: 0;
+   
+}
 
-    #container {
-        display: flex;
-        max-width: 900px;
-        margin: auto;
-    }
 
-    #users {
-        width: 30%;
-        border-right: 1px solid #ccc;
-        padding: 10px;
-    }
+#container {
+    display: flex;
+    max-width: 1200px;
+    margin: 30px auto;
+    padding: 0 20px;
+    height: 80vh;
+}
 
-    #chat {
-        width: 70%;
-        padding: 10px;
-    }
 
-    .user {
-        cursor: pointer;
-        padding: 8px;
-        margin-bottom: 5px;
-        background: #f0f0f0;
-        border-radius: 5px;
-    }
+#users {
+    width: 30%;
+    border-right: 1px solid #ccc;
+    padding: 15px;
+    background-color: #fff;
+}
 
-    .user:hover {
-        background: #ddd;
-    }
+.user {
+    cursor: pointer;
+    padding: 10px;
+    margin-bottom: 8px;
+    background: #f0f0f0;
+    border-radius: 5px;
+    font-size: 16px;
+}
 
-    #messages {
-        list-style: none;
-        padding: 0;
-        max-height: 300px;
-        overflow-y: auto;
-    }
+.user:hover {
+    background: #d9d9d9;
+}
 
-    .message {
-        padding: 8px;
-        margin: 5px 0;
-        border-radius: 5px;
-    }
 
-    .sent {
-        background: #dcf8c6;
-        text-align: right;
-    }
+#chat {
+    display: flex;
+    flex-direction: column;
+    width: 70%;
+    padding: 15px;
+    background-color: #fff;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    height: 90vh; 
+    position: relative;
+}
 
-    .received {
-        background: #f1f0f0;
-        text-align: left;
-    }
 
-    #messageInput {
-        width: 80%;
-        padding: 10px;
-    }
+#chatTitle {
+    font-size: 18px;
+    margin-bottom: 10px;
+}
 
-    #sendMessage {
-        padding: 10px;
-    }
 
-    #logoutBtn {
-        display: block;
-        margin: 20px auto;
-        padding: 10px 15px;
-        background: red;
-        color: white;
-        text-align: center;
-        cursor: pointer;
-        border-radius: 5px;
-        width: fit-content;
-    }
+#messages {
+    flex-grow: 1;
+    list-style: none;
+    padding: 0;
+    max-height: calc(80vh - 120px); 
+    overflow-y: auto;
+    margin-bottom: 20px;
+}
 
-    #logoutBtn:hover {
-        background: darkred;
-    }
+.message {
+    padding: 10px;
+    margin: 8px 0;
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 1.5;
+    word-wrap: break-word;
+}
 
-    body {
-        font-family: Arial, sans-serif;
-        background-color: #f4f7fa;
-        margin: 0;
-        padding: 0;
-    }
+.sent {
+    background: #dcf8c6;
+    text-align: right;
+}
 
-    h2 {
-        text-align: center;
-        color: #333;
-        margin-top: 20px;
-    }
+.received {
+    background: #f1f0f0;
+    text-align: left;
+}
 
-    #container {
-        display: flex;
-        max-width: 1200px;
-        margin: 30px auto;
-        padding: 0 20px;
-    }
 
-    #users {
-        width: 30%;
-        border-right: 1px solid #ccc;
-        padding: 15px;
-        background-color: #fff;
-    }
+#messageForm {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: white;
+    display: flex;
+    padding: 10px;
+    box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+    align-items: center;
+    border-top: 1px solid #ccc;
+}
 
-    #chat {
-        width: 70%;
-        padding: 15px;
-        background-color: #fff;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        border-radius: 8px;
-    }
 
-    .user {
-        cursor: pointer;
-        padding: 10px;
-        margin-bottom: 8px;
-        background: #f0f0f0;
-        border-radius: 5px;
-        font-size: 16px;
+#messageInput {
+    width: 80%;
+    padding: 12px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    outline: none;
+    transition: border 0.3s ease;
+}
 
-    }
 
-    .user:hover {
-        background: #d9d9d9;
-    }
+#messageInput:focus {
+    border-color: #6c63ff;
+}
 
-    #messages {
-        list-style: none;
-        padding: 0;
-        max-height: 400px;
-        overflow-y: auto;
-        margin-bottom: 20px;
-    }
+#sendMessage {
+    margin-left: 10px;
+    padding: 12px 20px;
+    background-color: #6c63ff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+}
 
-    .message {
-        padding: 10px;
-        margin: 8px 0;
-        border-radius: 6px;
-        font-size: 14px;
-        line-height: 1.5;
-        word-wrap: break-word;
-    }
+#sendMessage:hover {
+    background-color: #5753e3;
+}
 
-    .sent {
-        background: #dcf8c6;
-        text-align: right;
-    }
 
-    .received {
-        background: #f1f0f0;
-        text-align: left;
-    }
+#logoutBtn {
+    display: block;
+    margin: 20px auto;
+    padding: 10px 20px;
+    background-color: red;
+    color: white;
+    text-align: center;
+    border-radius: 5px;
+    width: fit-content;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+    cursor: pointer;
+}
 
-    #messageInput {
-        width: 80%;
-        padding: 12px;
-        font-size: 16px;
-        border: 1px solid #ccc;
-        border-radius: 5px;
-        margin-right: 10px;
-        outline: none;
-        transition: border 0.3s ease;
-    }
+#logoutBtn:hover {
+    background-color: darkred;
+}
 
-    #messageInput:focus {
-        border-color: #6c63ff;
-    }
-
-    #sendMessage {
-        padding: 12px 20px;
-        background-color: #6c63ff;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        font-size: 16px;
-        transition: background-color 0.3s ease;
-    }
-
-    #sendMessage:hover {
-        background-color: #5753e3;
-    }
-
-    #logoutBtn {
-        display: block;
-        margin: 20px auto;
-        padding: 10px 20px;
-        background-color: red;
-        color: white;
-        text-align: center;
-        border-radius: 5px;
-        width: fit-content;
-        font-size: 16px;
-        transition: background-color 0.3s ease;
-    }
-
-    #logoutBtn:hover {
-        background-color: darkred;
-    }
-
-    #chatTitle {
-        font-size: 18px;
-        margin-bottom: 10px;
-    }
 </style>

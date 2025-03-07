@@ -1,13 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const authController = require("../controllers/authController");
+const {authRedirect}= require("../middleware/authMiddleware")
 
-router.get("/login", (req, res) => {
+router.get("/login", authRedirect, (req, res) => {
   res.render("login");
 });
 
-
-router.get("/register", (req, res) => {
+router.get("/register", authRedirect, (req, res) => {
   res.render("register");
 });
 
