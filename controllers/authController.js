@@ -40,7 +40,7 @@ const sendOtpEmail = async (email, otp) => {
   }
 };
 
-// 🔹 Register (Signup)
+//  Register (Signup)
 exports.register = async (req, res) => {
   try {
     console.log(" Register request body:", req.body);
@@ -67,7 +67,7 @@ exports.register = async (req, res) => {
       return res.render("register", { error: "Email already in use" });
     }
 
-    // Hash password
+  
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = await User.create({
@@ -137,7 +137,7 @@ exports.login = async (req, res) => {
   }
 };
 
-//  Email Verification (Optimized)
+//  Email Verification
 exports.verifyEmail = async (req, res) => {
   try {
     const { userId, otp } = req.body;

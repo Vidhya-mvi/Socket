@@ -102,61 +102,94 @@ io.on("connection", (socket) => {
     currentUser = user;
   });
 
+  socket.on("userLogin", (user) => {
+    currentUser = user;
+    onlineUsers.set(user._id, socket.id);
+    io.emit("updateOnlineUsers", Array.from(onlineUsers.keys()));
+  });
+
+ 
 
   socket.on("joinRoom", async (room) => {
     if (!room) return;
 
     socket.join(room);
-    try {
-      const chat = await Chat.findOne({ room }).populate("messages.sender", "username _id");
 
-      if (chat) {
-        socket.emit("loadMessages", chat.messages);
-      }
+    try {
+        const chat = await Chat.findOne({ room }).populate("messages.sender", "name _id"); 
+
+        if (chat) {
+            socket.emit("loadMessages", chat.messages);
+        } else {
+            socket.emit("loadMessages", []);
+        }
     } catch (error) {
-      console.error("Error loading messages:", error);
+        console.error("Error loading messages:", error);
     }
-  });
+});
 
-  socket.on("chatMessage", async (data) => {
-    if (!data.sender || !mongoose.Types.ObjectId.isValid(data.sender)) return;
+  
 
-    try {
-      let chat = await Chat.findOne({ room: data.room });
-      if (!chat) {
-        chat = new Chat({ room: data.room, messages: [], users: [] });
+socket.on("chatMessage", async (data) => {
+  try {
+      if (!data.sender || !mongoose.Types.ObjectId.isValid(data.sender)) return;
+
+      let senderName = data.sender.name || null;
+
+      // Fetch sender's name if it's missing
+      if (!senderName) {
+          const user = await User.findById(data.sender).select("name");
+          senderName = user ? user.name : "Unknown";
       }
 
+      let chat = await Chat.findOne({ room: data.room }).populate("messages.sender", "name _id");
+
+      if (!chat) {
+          chat = new Chat({ room: data.room, messages: [], users: [] });
+      }
 
       const newMessage = {
-        sender: new mongoose.Types.ObjectId(data.sender),
-        message: data.message,
-        timestamp: new Date(),
+          sender: new mongoose.Types.ObjectId(data.sender),
+          message: data.message,
+          timestamp: new Date(),
       };
 
       chat.messages.push(newMessage);
       await chat.save();
 
-      io.to(data.room).emit("chatMessage", {
-        room: data.room,
-        message: data.message,
-        sender: data.sender,
-        timestamp: newMessage.timestamp,
-      });
-    } catch (error) {
-      console.error("Error saving message:", error);
-    }
-  });
+      // Fetch the latest message with the sender populated
+      const updatedChat = await Chat.findOne({ room: data.room })
+          .populate("messages.sender", "name _id")
+          .select("messages")
+          .lean();
 
+      const latestMessage = updatedChat.messages.slice(-1)[0];
+
+      io.to(data.room).emit("chatMessage", {
+          room: data.room,
+          message: latestMessage.message,
+          sender: {
+              _id: latestMessage.sender._id,
+              name: latestMessage.sender.name || "Unknown",
+          },
+          timestamp: latestMessage.timestamp,
+      });
+
+  } catch (error) {
+      console.error("Error saving message:", error);
+  }
+});
+
+  
 
   socket.on("leaveRoom", async (room) => {
     try {
       if (!room) return;
   
-      // Save chat messages when user leaves the room
+    
       let chat = await Chat.findOne({ room });
       if (chat) {
-        await chat.save(); // Ensure the chat data is saved before leaving
+        await chat.save();
       }
   
       socket.leave(room);
@@ -171,6 +204,12 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log("User disconnected");
   });
+});
+
+
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).render("error", { errorMessage: err.message || "Internal Server Error" });
 });
 
 const PORT = process.env.PORT || 8000;

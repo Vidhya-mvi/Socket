@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error</title>
+</head>
+<body>
+    <div class="error-container">
+        <h1>Error</h1>
+        <p><%= errorMessage || "An unexpected error occurred." %></p>
+        <a href="/">Go Back Home</a>
+    </div>
+</body>
+</html>
+<style>
+  body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 50px;
+  }
+  .error-container {
+      max-width: 500px;
+      margin: auto;
+      padding: 20px;
+      border: 1px solid #ff4d4d;
+      background-color: #ffe6e6;
+      border-radius: 5px;
+  }
+  h1 {
+      color: #cc0000;
+  }
+  p {
+      color: #333;
+  }
+  a {
+      text-decoration: none;
+      color: #007bff;
+  }
+</style>

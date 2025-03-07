@@ -19,7 +19,7 @@
             <% users.forEach(user=> { %>
                 <% if (user._id.toString() !==currentUser._id.toString()) { %>
                     <div class="user" onclick="openChat('<%= user._id %>', '<%= user.name %>')">
-                        <%= user.name %>
+                        <%= user.name %> <span class="status-indicator" id="status-<%= user._id %>"></span>
                     </div>
                     <% } %>
                         <% }); %>
@@ -27,12 +27,14 @@
                             <h3>Create or Join Group</h3>
                             <input type="text" id="groupName" placeholder="Group name">
                             <button onclick="createGroup()">Create Group</button>
-                            <h4>Or join an existing group:</h4>
                             <div id="groupList"></div>
 
                             <a href="/logout" id="logoutBtn">Logout</a>
 
         </div>
+        
+          
+       
 
         <div id="chat">
             <h3 id="chatTitle">Select a user or group to chat</h3>
@@ -61,6 +63,22 @@
             console.log(` Joining chat room: ${currentRoom}`);
             socket.emit("joinRoom", currentRoom);
         }
+
+
+        socket.on("updateOnlineUsers", (onlineUsers) => {
+    document.querySelectorAll(".status-indicator").forEach((el) => {
+        el.innerText = " (Offline)";
+        el.style.color = "red";
+    });
+
+    onlineUsers.forEach(userId => {
+        const userStatus = document.getElementById(`status-${userId}`);
+        if (userStatus) {
+            userStatus.innerText = " (Online)";
+            userStatus.style.color = "green";
+        }
+    });
+});
 
 
         function createGroup() {
@@ -102,14 +120,30 @@
         }
 
 
-        socket.on("chatMessage", (data) => {
-            console.log(" Received message:", data);
+        socket.on("loadMessages", (messages) => {
+    const messagesList = document.getElementById("messages");
+    messagesList.innerHTML = "";
 
-            if (data.room !== currentRoom) return;
+    messages.forEach(msg => {
+        const senderName = msg.sender && msg.sender.name ? msg.sender.name : "Unknown";
 
-            const senderName = data.sender === "<%= currentUser._id %>" ? "<%= currentUser.name %>" : currentChatUser;
-            addMessage(senderName, data.message, data.sender === "<%= currentUser._id %>" ? "sent" : "received");
-        });
+        const li = document.createElement("li");
+        li.innerHTML = `<strong>${senderName}</strong>: ${msg.message}`;
+        messagesList.appendChild(li);
+    });
+
+    messagesList.scrollTop = messagesList.scrollHeight;
+});
+
+
+socket.on("chatMessage", (data) => {
+    console.log("Received message:", data);
+
+    if (data.room !== currentRoom) return;
+
+    const senderName = data.sender?.name || "Unknown";  
+    addMessage(senderName, data.message, data.sender?._id === "<%= currentUser._id %>" ? "sent" : "received");
+});
 
 
         function addMessage(sender, message, type) {
@@ -136,6 +170,24 @@
 
 
         socket.emit("requestGroupList");
+
+
+
+        document.getElementById("logoutBtn").addEventListener("click", function (event) {
+    event.preventDefault(); 
+
+    fetch("/logout", {
+        method: "POST",
+        credentials: "include"
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log(data.message); 
+        window.location.href = "/login"; 
+    })
+    .catch(error => console.error("Logout failed:", error));
+});
+
 
     </script>
 

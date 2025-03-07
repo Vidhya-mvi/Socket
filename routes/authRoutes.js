@@ -26,4 +26,9 @@ router.get("/logout", (req, res) => {
   });
 });
 
+
+router.get("/error-test", (req, res) => {
+  throw new Error("This is a test error!");
+});
+
 module.exports = router;
